@@ -8,7 +8,7 @@ apt-get update
 
 # DEBIAN_FRONTEND is set for tzdata.
 DEBIAN_FRONTEND="noninteractive" apt-get install --no-install-recommends -y \
-    curl gcc musl-tools git python3 python3-pip shellcheck \
+    curl gcc musl-tools git python3 python3-pip shellcheck rsync \
     libssl-dev tzdata cmake g++ pkg-config jq libcurl4-openssl-dev libelf-dev \
     libdw-dev binutils-dev libiberty-dev make \
     cpio bc flex bison wget xz-utils fakeroot \
@@ -49,7 +49,10 @@ if [ "$ARCH" != "riscv64" ]; then
     popd
 fi
 
-pip3 install --no-cache-dir pytest pexpect boto3 pytest-timeout && apt purge -y python3-pip
+# Allow pip to install packages system wide
+rm /usr/lib/python3.*/EXTERNALLY-MANAGED
+pip3 install --no-cache-dir pytest pexpect boto3 pytest-timeout
+apt purge -y python3-pip
 
 # Install rustup and a fixed version of Rust.
 curl https://sh.rustup.rs -sSf | sh -s -- \
