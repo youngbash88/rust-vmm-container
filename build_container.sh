@@ -22,6 +22,7 @@ DEBIAN_FRONTEND="noninteractive" apt-get install --no-install-recommends -y \
     libgbm1 libgbm-dev libgles2 \
     libglm-dev libstb-dev libc6-dev \
     debhelper-compat libdbus-1-dev libglib2.0-dev meson ninja-build dbus \
+    libvirglrenderer1 libvirglrenderer-dev pipewire libpipewire-0.3-dev \
     podman
 
 # `riscv64` specific dependencies
@@ -79,14 +80,17 @@ fi
 
 cargo install cargo-llvm-cov
 
-# Install aemu, gfxstream, libgpiod, libpipewire and libvirglrenderer (required
-# by vhost-device crate), while `aemu` has yet supported `riscv64`, skipping
-# `vhost-device` related dependencies for `riscv64` at the time being
+# Install some dependencies required by vhost-device crates but not available
+# in Ubuntu repos.
+# Some of these do not support riscv64, since vhost-device crates do not
+# support riscv64 too, let's skip them for now.
 if [ "$ARCH" != "riscv64" ]; then
     pushd /opt
-    git clone https://android.googlesource.com/platform/hardware/google/aemu
+
+    # required by vhost-device-gpu
+    git clone --depth 1 --branch v0.1.2-aemu-release \
+        https://android.googlesource.com/platform/hardware/google/aemu
     pushd aemu
-    git checkout v0.1.2-aemu-release
     cmake -DAEMU_COMMON_GEN_PKGCONFIG=ON \
         -DAEMU_COMMON_BUILD_CONFIG=gfxstream \
         -DENABLE_VKCEREAL_TESTS=OFF -B build
@@ -94,38 +98,29 @@ if [ "$ARCH" != "riscv64" ]; then
     cmake --install build
     popd
     rm -rf aemu
-    git clone https://android.googlesource.com/platform/hardware/google/gfxstream
+
+    # required by vhost-device-gpu
+    git clone --depth 1 --branch v0.1.2-gfxstream-release \
+        https://android.googlesource.com/platform/hardware/google/gfxstream
     pushd gfxstream
-    git checkout v0.1.2-gfxstream-release
     meson setup host-build/
     meson install -C host-build/
     popd
     rm -rf gfxstream
-    git clone --depth 1 --branch v2.0 https://git.kernel.org/pub/scm/libs/libgpiod/libgpiod.git/
+
+    # required by vhost-device-gpio
+    git clone --depth 1 --branch v2.0 \
+        https://git.kernel.org/pub/scm/libs/libgpiod/libgpiod.git/
     pushd libgpiod
     ./autogen.sh --prefix=/usr && make && make install
     popd
     rm -rf libgpiod
-    wget https://gitlab.freedesktop.org/pipewire/pipewire/-/archive/0.3.71/pipewire-0.3.71.tar.gz
-    tar xzvf pipewire-0.3.71.tar.gz
-    pushd pipewire-0.3.71
-    meson setup builddir --prefix="/usr" -Dbuildtype=release \
-        -Dauto_features=disabled -Ddocs=disabled -Dtests=disabled \
-        -Dexamples=disabled -Dinstalled_tests=disabled -Dsession-managers=[] && \
-    meson compile -C builddir && \
-    meson install -C builddir
+
+    # we can leave /opt at this point
     popd
-    rm -rf pipewire-0.3.71
-    rm pipewire-0.3.71.tar.gz
-    git clone https://gitlab.freedesktop.org/virgl/virglrenderer.git
-    pushd virglrenderer
-    git checkout virglrenderer-1.0.1
-    meson setup build
-    ninja -C build
-    ninja -C build install
-    popd
-    rm -rf virglrenderer
-    popd
+
+    # configure dynamic linker run-time bindings after installing new libraries
+    ldconfig
 fi
 
 # dbus-daemon expects this folder
