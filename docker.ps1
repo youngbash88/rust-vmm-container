@@ -34,11 +34,17 @@ function Build-Tag {
 }
 
 function Build-Container {
+    # Build the container and check for failures
+    # Docker build returns 0 on success, non-zero on failure
     $tag = Build-Tag
     docker build -t $tag `
-    --build-arg GIT_BRANCH=$GIT_BRANCH `
-    --build-arg GIT_COMMIT=$GIT_COMMIT `
-    -f Dockerfile.windows.x86_64 .
+        --build-arg GIT_BRANCH=$GIT_BRANCH `
+        --build-arg GIT_COMMIT=$GIT_COMMIT `
+        -f Dockerfile.windows.x86_64 .
+    if ($LASTEXITCODE -ne 0) {
+        Write-Error "Build failed with exit code $LASTEXITCODE"
+        exit $LASTEXITCODE
+    }
     Write-Host "Build completed for $tag"
 }
 
