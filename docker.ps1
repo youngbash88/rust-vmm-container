@@ -3,10 +3,14 @@ param(
  [string]$Command
 )
 $ErrorActionPreference = "Stop"
-$GIT_COMMIT = (git rev-parse HEAD)
-$GIT_BRANCH = (git rev-parse --abbrev-ref HEAD)
-$IMAGE_NAME = "rustvmm/dev"
-$REGISTRY = "index.docker.io"
+Get-Content docker.env | Where-Object { $_ -match '^([^#][^=]+)=(.+)$' } | ForEach-Object {
+    if ($matches[2] -match '\$\((.*)\)') {
+        $cmdOutput = Invoke-Expression $matches[1]
+        Set-Variable -Name $matches[1].Trim() -Value $cmdOutput -Scope Script
+    } else {
+        Set-Variable -Name $matches[1].Trim() -Value $matches[2].Trim() -Scope Script
+    }
+}
 $ARCH = "x86_64"  # Explicitly set the architecture
 
 function Next-Version {
