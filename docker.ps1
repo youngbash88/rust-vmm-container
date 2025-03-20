@@ -3,10 +3,14 @@ param(
  [string]$Command
 )
 $ErrorActionPreference = "Stop"
-$GIT_COMMIT = (git rev-parse HEAD)
-$GIT_BRANCH = (git rev-parse --abbrev-ref HEAD)
-$IMAGE_NAME = "rustvmm/dev"
-$REGISTRY = "index.docker.io"
+Get-Content docker.env | Where-Object { $_ -match '^([^#][^=]+)=(.+)$' } | ForEach-Object {
+    if ($matches[2] -match '\$\((.*)\)') {
+        $cmdOutput = Invoke-Expression $matches[1]
+        Set-Variable -Name $matches[1].Trim() -Value $cmdOutput -Scope Script
+    } else {
+        Set-Variable -Name $matches[1].Trim() -Value $matches[2].Trim() -Scope Script
+    }
+}
 $ARCH = "x86_64"  # Explicitly set the architecture
 
 function Next-Version {
@@ -14,19 +18,20 @@ function Next-Version {
 }
 
 function Get-FullVersion {
-    return "$IMAGE_NAME:g$(Next-Version)"
+    $version = Next-Version
+    return "${IMAGE_NAME}:g${version}"
 }
 
 function Print-NextVersion {
-    return "$IMAGE_NAME:g$(Next-Version)"
+    Write-Output (Get-FullVersion)
 }
 
 function Print-Registry {
-    return $REGISTRY
+    Write-Output $REGISTRY
 }
 
 function Print-ImageName {
-    return $IMAGE_NAME
+    Write-Output $IMAGE_NAME
 }
 
 function Build-Tag {
@@ -34,13 +39,22 @@ function Build-Tag {
 }
 
 function Build-Container {
+    # Check if running in Linux or Windows container mode
+    $containerInfo = docker version --format '{{.Server.Os}}'
+    $dockerfile = if ($containerInfo -eq "linux") {
+        "Dockerfile"
+    } else {
+        "Dockerfile.windows.x86_64"
+    }
+    
     # Build the container and check for failures
-    # Docker build returns 0 on success, non-zero on failure
     $tag = Build-Tag
+    Write-Host "Building using $dockerfile in $containerInfo container mode..."
+    
     docker build -t $tag `
         --build-arg GIT_BRANCH=$GIT_BRANCH `
         --build-arg GIT_COMMIT=$GIT_COMMIT `
-        -f Dockerfile.windows.x86_64 .
+        -f $dockerfile .
     if ($LASTEXITCODE -ne 0) {
         Write-Error "Build failed with exit code $LASTEXITCODE"
         exit $LASTEXITCODE
@@ -51,7 +65,20 @@ function Build-Container {
 function Publish-Container {
     $tag = Build-Tag
     Write-Host "Publishing $tag to dockerhub"
+    
+    # Check if image exists locally
+    $imageExists = docker image inspect $tag 2>$null
+    if ($LASTEXITCODE -ne 0) {
+        Write-Error "Image $tag not found locally. Please run 'build' first."
+        exit 1
+    }
+
+    # Attempt to push
     docker push $tag
+    if ($LASTEXITCODE -ne 0) {
+        Write-Error "Failed to publish $tag"
+        exit $LASTEXITCODE
+    }
     Write-Host "Successfully published $tag"
 }
 
