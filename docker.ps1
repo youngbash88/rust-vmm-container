@@ -54,6 +54,7 @@ function Build-Container {
     docker build -t $tag `
         --build-arg GIT_BRANCH=$GIT_BRANCH `
         --build-arg GIT_COMMIT=$GIT_COMMIT `
+        --build-arg RUST_TOOLCHAIN=$RUST_TOOLCHAIN `
         -f $dockerfile .
     if ($LASTEXITCODE -ne 0) {
         Write-Error "Build failed with exit code $LASTEXITCODE"
