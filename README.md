@@ -138,10 +138,15 @@ On an `aarch64` platform:
 ```
 
 On Windows (ensure Docker Desktop is in Linux containers mode):
+
 ```powershell
 > cd rust-vmm-container
 > .\docker.ps1 build
 > .\docker.ps1 publish
+
+
+#To check if Docker is in Linux containers mode:
+> docker version --format '{{.Server.Os}}'  # Should output 'linux'
 ```
 
 You will need to redo all steps on an `x86_64` platform so the containers are
