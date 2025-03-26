@@ -7,8 +7,6 @@ ARG RUST_TOOLCHAIN
 FROM mcr.microsoft.com/windows/servercore:$WIN_VER
 
 ENV chocolateyUseWindowsCompression "true"
-# Update Rust version to one that supports cargo resolver
-ENV RUST_TOOLCHAIN="1.75.0"
 # Set Chocolatey version to 1.4.0 to avoid .NET Framework 4.8 dependency
 ENV chocolateyVersion="1.4.0"
 
